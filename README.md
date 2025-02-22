@@ -9,3 +9,25 @@ We have created a tool for basic  real matrix opertions like addition , subtract
 
 
 We have provided .py file for our code wihch we have merged with streamlit for webpage application
+
+
+For updated code these operations will come 
+"""
+    **Enter a LaTeX matrix operation**  
+    *Supports:*  
+    - **Transpose:** Tr =\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Trace:** Trc =\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Inverse:** inv= \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Determinant:** det= \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Eigenvalues:** E =\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Eigenvectors:** X= \begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Dimension (Rank):** dim =\begin{bmatrix} 1 & 2 \\ 2 & 4 \end{bmatrix}
+    - **Rank:** R =\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **LU Decomposition:** LU =\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **SVD Decomposition:** SVD =\begin{bmatrix} 1 & 2 \\ 3 & 4 \end{bmatrix}
+    - **Matrix Addition, Subtraction, Multiplication (supports multiple matrices)**  
+      Example:  
+
+\begin{bmatrix} 1 & 2 \end{bmatrix} + \begin{bmatrix} 3 & 4 \end{bmatrix} + \begin{bmatrix} 5 & 6 \end{bmatrix}
+
+    """

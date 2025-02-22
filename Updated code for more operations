@@ -1,0 +1,399 @@
+import streamlit as st
+import sympy as sp
+import numpy as np
+from scipy.linalg import lu
+import scipy.linalg as la
+
+
+import re
+
+
+# def parse_latex(latex_str):
+#     """Parses LaTeX matrix expressions and identifies operations"""
+#     latex_str = latex_str.strip()
+#
+#     # Identify if a specific operation is required
+#     operation = None
+#     match = re.match(r'^(Tr|Inv|Det|Trx|E|Ev|Dim|R)\s*=\s*(.*)', latex_str, re.IGNORECASE)
+#     if match:
+#         operation = match.group(1).lower()
+#         latex_str = match.group(2).strip()
+#
+#     # Extract matrices
+#     matrix_strings = re.findall(r'\\begin{bmatrix}(.+?)\\end{bmatrix}', latex_str, re.DOTALL)
+#
+#     matrices = []
+#     for mat_str in matrix_strings:
+#         rows = mat_str.strip().split(r'\\')
+#         matrix = [list(map(int, row.split('&'))) for row in rows]
+#         matrices.append(sp.Matrix(matrix))
+#
+#     # Extract operations (+, -, *)
+#     operations = re.findall(r'(\+|\-|\*)', latex_str)
+#
+#     return operation, matrices, operations
+#
+#
+# def compute_result(operation, matrices, operations):
+#     """Computes the result based on the operation"""
+#     if not matrices:
+#         return "No valid matrix detected!"
+#
+#     # Handle special operations (Transpose, Inverse, Determinant, etc.)
+#     if operation == "tr":  # Transpose
+#         return matrices[0].T
+#     elif operation == "inv":  # Inverse
+#         if matrices[0].det() == 0:
+#             return "Matrix is singular, inverse does not exist!"
+#         return matrices[0].inv()
+#     elif operation == "det":  # Determinant
+#         return matrices[0].det()
+#     elif operation == "trx":  # Trace
+#         return matrices[0].trace()
+#     elif operation == "e":  # Eigenvalues
+#         return matrices[0].eigenvals()
+#     elif operation == "ev":  # Eigenvectors
+#         return matrices[0].eigenvects()
+#     elif operation == "dim":  # Dimension (Rank of matrix)
+#         return matrices[0].rank()
+#     elif operation == "r":  # Rank
+#         return matrices[0].rank()
+#
+#
+#     # Perform matrix operations if multiple matrices are present
+#     if len(matrices) > 1 and operations:
+#         result = matrices[0]  # Start with the first matrix
+#         for i in range(1, len(matrices)):
+#             if operations[i - 1] == "+":
+#                 if result.shape == matrices[i].shape:  # Check dimension match
+#                     result += matrices[i]
+#                 else:
+#                     return "Addition not possible due to dimension mismatch!"
+#             elif operations[i - 1] == "-":
+#                 if result.shape == matrices[i].shape:  # Check dimension match
+#                     result -= matrices[i]
+#                 else:
+#                     return "Subtraction not possible due to dimension mismatch!"
+#             elif operations[i - 1] == "*":
+#                 if result.shape[1] == matrices[i].shape[0]:  # Check matrix multiplication rule
+#                     result *= matrices[i]
+#                 else:
+#                     return "Multiplication not possible due to shape mismatch!"
+#         return result
+#
+#     return "Invalid operation!"
+
+def parse_latex_matrix(latex_str):
+    """
+    Extracts matrices from a LaTeX expression and converts them to NumPy arrays.
+    """
+    matrix_pattern = r"\\begin{bmatrix}(.*?)\\end{bmatrix}"
+    matrices = re.findall(matrix_pattern, latex_str, re.DOTALL)
+
+    matrix_list = []
+    for matrix in matrices:
+        rows = matrix.strip().split(r"\\")
+        parsed_matrix = [list(map(float, row.split('&'))) for row in rows]
+        matrix_list.append(np.array(parsed_matrix))
+
+    return matrix_list
+
+
+def detect_operation(latex_str):
+    """
+    Detects the matrix operation (+, -, *, LU, SVD,trc|tr|inv|det|e|ev|dim|r|lu|svd) in the LaTeX expression.
+
+    """
+    latex_str = latex_str.lower()  # Convert to lowercase for case-insensitive matching
+
+    if "lu" in latex_str:
+        return "lu"
+    elif "svd" in latex_str:
+        return "svd"
+    elif "trc" in latex_str:
+        return "trc"
+    elif "tr" in latex_str:
+        return "tr"
+    elif "inv" in latex_str:
+        return "inv"
+    elif "det" in latex_str:
+        return "det"
+    elif "e" in latex_str:
+        return "e"
+    elif "dim" in latex_str:
+        return "dim"
+    elif "r" in latex_str:
+        return "r"
+    elif "lud" in latex_str:
+        return "lud"
+    elif "svd" in latex_str:
+        return "svd"
+    elif "ev" in latex_str:
+        return "ev"
+    elif "+" in latex_str:
+        return "+"
+    elif "-" in latex_str:
+        return "-"
+    elif "*" in latex_str:
+        return "*"
+    else:
+        return None
+
+
+def compute_matrix_operation(latex_expr):
+    """
+    Parses the LaTeX input, detects the matrices and operation, checks compatibility, and computes the result.
+    """
+    latex_expr = latex_expr.strip().lower()  # Convert to lowercase
+
+    # Extract keyword (Tr, inv, det, Trx, E, Ev, dim, R, LU, SVD)
+    keyword_match = re.match(r'^\s*(trc|tr|inv|det|e|x|dim|r|lu|svd)', latex_expr, re.IGNORECASE)
+    keyword = keyword_match.group(1).lower() if keyword_match else None
+
+    matrices = parse_latex_matrix(latex_expr)
+    if not matrices:
+        return "Error: No valid matrix found."
+
+    # Special matrix operations
+    if keyword == "tr":
+        return matrices[0].T  # Transpose
+    elif keyword == "trc":
+        return np.trace(matrices[0])  # Trace
+    elif keyword == "inv":
+        if matrices[0].shape[0] != matrices[0].shape[1]:
+            return "Error: Inverse can only be computed for square matrices."
+        try:
+            return np.linalg.inv(matrices[0])
+        except np.linalg.LinAlgError:
+            return "Error: Matrix is singular and cannot be inverted."
+    elif keyword == "det":
+        if matrices[0].shape[0] != matrices[0].shape[1]:
+            return "Error: Determinant can only be computed for square matrices."
+        return np.linalg.det(matrices[0])
+    elif keyword == "e":
+        if matrices[0].shape[0] != matrices[0].shape[1]:
+            return "Error: Eigenvalues can only be computed for square matrices."
+        return np.linalg.eigvals(matrices[0])
+    elif keyword == "x":
+        if matrices[0].shape[0] != matrices[0].shape[1]:
+            return "Error: Eigenvectors can only be computed for square matrices."
+        eigenvalue, ev = np.linalg.eig(matrices[0])
+        st.write("### ✅ Result:")
+        st.write("Eigenvectors:")
+        st.write(ev)
+        # st.write(eigenvalue)
+        return None
+    elif keyword == "dim":
+        return np.linalg.matrix_rank(matrices[0])  # Matrix rank (dimension)
+    elif keyword == "r":
+        return np.linalg.matrix_rank(matrices[0])  # Matrix rank
+    elif keyword == "lu":
+        try:
+            P, L, U = la.lu(matrices[0])
+            st.write("### ✅ Result:")
+            st.write("Permutation Matrix (P):")
+            st.write(P)
+            st.write("Lower Triangular Matrix (L):")
+            st.write(L)
+            st.write("Upper Triangular Matrix (U):")
+            st.write(U)
+            return None
+        except Exception as e:
+            return f"Error: LU decomposition failed. {str(e)}"
+    elif keyword == "svd":
+        try:
+            U, S, Vt = np.linalg.svd(matrices[0])
+            st.write("### ✅ Result:")
+            st.write("Permutation Matrix (P):")
+            st.write(U)
+            st.write("Lower Triangular Matrix (L):")
+            st.write(S)
+            st.write("Upper Triangular Matrix (U):")
+            st.write(Vt)
+            return None
+        except Exception as e:
+            return f"Error: SVD decomposition failed. {str(e)}"
+
+    # Otherwise, perform standard matrix operations
+    operation = detect_operation(latex_expr)
+    if not operation:
+        return "Error: No valid operation detected."
+
+    # Perform operations on multiple matrices
+    result = matrices[0]
+    if operation in ('+', '-', '*'):
+        for matrix in matrices[1:]:
+            if operation == '+':
+                if result.shape != matrix.shape:
+                    return f"Error: Matrices must have the same dimensions for addition. Found {result.shape} and {matrix.shape}."
+                result += matrix
+            elif operation == '-':
+                if result.shape != matrix.shape:
+                    return f"Error: Matrices must have the same dimensions for subtraction. Found {result.shape} and {matrix.shape}."
+                result -= matrix
+            elif operation == '*':
+                if result.shape[1] != matrix.shape[0]:
+                    return f"Error: Matrices are not compatible for multiplication. Found {result.shape} and {matrix.shape}."
+                result = np.matmul(result, matrix)
+
+    return result
+
+
+
+
+# Streamlit UI
+st.title("Matrix Calculator")
+
+# Buttons to choose input mode
+calc_mode = st.radio("Choose an input method:", ["LaTeX Code", "Matrix Calculator"])
+
+if calc_mode == "LaTeX Code":
+    st.markdown("[Click here to open LaTeX editor](https://webdemo.myscript.com/views/math/index.html#)",
+                unsafe_allow_html=True)
+    latex_input = st.text_area("Enter LaTeX matrix expression:", "")
+    if st.button("Compute LaTeX Expression"):
+        if latex_input:
+            result = compute_matrix_operation(latex_input)
+            o = detect_operation
+
+            if result is None:
+                pass
+            else:
+                st.write("### ✅ Result:")
+                st.write(result)
+
+
+        else:
+            st.error("Please enter a valid LaTeX matrix expression!")
+            # Otherwise, perform standard matrix operations
+            operation = detect_operation(latex_input)
+            if not operation:
+                st.write( "Error: No valid operation detected.")
+
+            # Perform operations on multiple matrices
+            result = matrices[0]
+            if operation in ('+', '-', '*'):
+                for matrix in matrices[1:]:
+                    if operation == '+':
+                        if result.shape != matrix.shape:
+                            st.write( f"Error: Matrices must have the same dimensions for addition. Found {result.shape} and {matrix.shape}.")
+                        result += matrix
+                    elif operation == '-':
+                        if result.shape != matrix.shape:
+                            st.write( f"Error: Matrices must have the same dimensions for subtraction. Found {result.shape} and {matrix.shape}.")
+                        result -= matrix
+                    elif operation == '*':
+                        if result.shape[1] != matrix.shape[0]:
+                            st.write( f"Error: Matrices are not compatible for multiplication. Found {result.shape} and {matrix.shape}.")
+                        result = np.matmul(result, matrix)
+
+                    else:
+                            st.error("Please enter a valid LaTeX matrix expression!")
+
+elif calc_mode == "Matrix Calculator":
+    st.write("Matrix Calculator")
+
+    # Available Operations
+    operation = st.selectbox("Choose an operation:", [
+        "Addition",
+        "Subtraction",
+        "Multiplication",
+        "Transpose",
+        "Inverse",
+        "Determinant",
+        "Rank",
+        "Trace",
+        "Eigenvalues",
+        "Eigenvectors",
+        "Singular Value Decomposition (SVD)",
+        "LU Decomposition"
+    ])
+
+
+    # Function to get matrix input
+    def get_matrix_input(rows, cols, name):
+        matrix = []
+        for i in range(rows):
+            row = st.text_input(f"{name} - Row {i + 1} (space-separated values)")
+            matrix.append(list(map(float, row.split()))) if row else matrix.append([0] * cols)
+        return np.array(matrix)
+
+
+    # Input Matrices Based on Operation
+    if operation in ["Addition", "Subtraction", "Multiplication"]:
+        n = st.number_input("Enter rows for Matrix A (n):", min_value=1, step=1, value=2)
+        m = st.number_input("Enter columns for Matrix A / rows for Matrix B (m):", min_value=1, step=1, value=2)
+        p = m if operation != "Multiplication" else st.number_input("Enter columns for Matrix B (p):", min_value=1,
+                                                                    step=1, value=2)
+
+        st.header("Enter Matrix A Elements")
+        matrix_a = get_matrix_input(n, m, "Matrix A")
+
+        st.header("Enter Matrix B Elements")
+        matrix_b = get_matrix_input(m, p, "Matrix B")
+
+        if operation in ["Addition", "Subtraction"] and matrix_a.shape != matrix_b.shape:
+            st.error("Matrix dimensions must match for addition or subtraction!")
+        elif operation == "Multiplication" and matrix_a.shape[1] != matrix_b.shape[0]:
+            st.error("Matrix A's columns must match Matrix B's rows for multiplication!")
+    else:
+        n = st.number_input("Enter the dimension (n x n) of the matrix:", min_value=1, step=1, value=2)
+        st.header("Enter Matrix Elements")
+        matrix_a = get_matrix_input(n, n, "Matrix A")
+
+    st.write("Input Matrix A:")
+    st.write(matrix_a)
+    if operation in ["Addition", "Subtraction", "Multiplication"]:
+        st.write("Input Matrix B:")
+        st.write(matrix_b)
+
+    # Perform Selected Operation
+    if st.button("Compute"):
+        try:
+            if operation == "Addition":
+                result = matrix_a + matrix_b
+            elif operation == "Subtraction":
+                result = matrix_a - matrix_b
+            elif operation == "Multiplication":
+                result = np.dot(matrix_a, matrix_b)
+            elif operation == "Transpose":
+                result = np.transpose(matrix_a)
+            elif operation == "Inverse":
+                result = np.linalg.inv(matrix_a)
+            elif operation == "Determinant":
+                result = np.linalg.det(matrix_a)
+            elif operation == "Rank":
+                result = np.linalg.matrix_rank(matrix_a)
+            elif operation == "Trace":
+                result = np.trace(matrix_a)
+            elif operation == "Eigenvalues":
+                result = np.linalg.eigvals(matrix_a)
+            elif operation == "Eigenvectors":
+                _, eigenvectors = np.linalg.eig(matrix_a)
+                st.write("Eigenvectors:")
+                st.write(eigenvectors)
+            elif operation == "Singular Value Decomposition (SVD)":
+                U, S, V = np.linalg.svd(matrix_a)
+                st.write("U Matrix:")
+                st.write(U)
+                st.write("Singular Values:")
+                st.write(np.diag(S))
+                st.write("V Matrix:")
+                st.write(V)
+            elif operation == "LU Decomposition":
+
+                P, L, U = lu(matrix_a)
+                st.write("Permutation Matrix (P):")
+                st.write(P)
+                st.write("Lower Triangular Matrix (L):")
+                st.write(L)
+                st.write("Upper Triangular Matrix (U):")
+                st.write(U)
+            else:
+                result = "Invalid operation selected."
+
+            if operation not in ["Eigenvectors", "Singular Value Decomposition (SVD)", "LU Decomposition"]:
+                st.write("Result:")
+                st.write(result)
+        except Exception as e:
+            st.error(f"Error: {e}")

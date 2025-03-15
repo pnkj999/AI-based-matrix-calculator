@@ -31,3 +31,100 @@ For updated code these operations will come
 \begin{bmatrix} 1 & 2 \end{bmatrix} + \begin{bmatrix} 3 & 4 \end{bmatrix} + \begin{bmatrix} 5 & 6 \end{bmatrix}
 
     """
+
+
+
+    NOw we have traine our model on tr ocr model and you can see from hee the model rquriements 
+
+    TrOCR Training on CROHME Dataset
+
+This repository contains code to train a TrOCR model (`microsoft/trocr-small-handwritten`) on the CROHME dataset for handwritten mathematical expression recognition. The training process uses a custom dataset class, mixed precision (FP16), and gradient accumulation to fit a small GPU (3.6 GiB).
+
+Dataset
+- Source: CROHME 2023 and 2016 combined  dataset (`TC11_CROHME23`).
+- Training Data:
+  - Labels: `/home/msi/course/crohme/CROHME23/TC11_CROHME23/labels/combined_labels.txt` (15,523 samples).
+  - Images: `/home/msi/course/crohme/CROHME23/TC11_CROHME23/IMG/combined_images/`.
+- Format: Tab-separated file with image paths and LaTeX labels (e.g., `image.png\t$x + 2$`).
+
+Model
+- Base Model: `microsoft/trocr-small-handwritten` (~60M parameters).
+- Why Small?: Chosen to fit a 3.6 GiB GPU, unlike `trocr-base-handwritten` (~330M), which caused OOM errors.
+
+Training Setup
+- Hardware: GPU with 3.6 GiB VRAM (e.g., NVIDIA GTX 1650).
+- Environment: Conda (`C2F-Seg`), Python 3.10.
+- Dependencies:
+  pip install transformers torch torchvision Pillow sentencepiece protobuf
+- Script: `train_trocr.py`.
+
+Key Features
+- Batch Size: 1 (due to memory constraints).
+- Gradient Accumulation: 4 steps, simulating an effective batch size of 4.
+- Mixed Precision: FP16 via `torch.cuda.amp` to reduce memory usage.
+- Optimizer: AdamW, learning rate 5e-5.
+- Scheduler: `ReduceLROnPlateau`, patience 3, factor 0.5.
+- Epochs: 20.
+- Output: Weights saved to `/home/msi/course/crohme/weights/trocr/trocr_crohme_best.pth`.
+
+How I Trained It
+1. Initial Attempt:
+   - Tried `trocr-base-handwritten` with batch size 4.
+   - Failed with `CUDA out of memory` (3.6 GiB GPU limit).
+2. Adjustments:
+   - Switched to `trocr-small-handwritten`.
+   - Reduced batch size to 1.
+   - Added FP16 training.
+   - Used gradient accumulation (4 steps).
+3. Dependency Issues:
+   - `protobuf` missing: Fixed with `pip install protobuf`.
+   - `sentencepiece` missing: Fixed with `pip install sentencepiece`.
+   - Tokenizer errors: Set `use_fast=False` in `TrOCRProcessor`.
+4. Final Run:
+   - Trained for 20 epochs on 15,523 samples.
+   - Final loss: 0.0190 (Epoch 20).
+   - Weights saved when loss improved.
+
+Training Script (`train_trocr.py`)
+
+import torch
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+# ... (rest of imports and code)
+processor = TrOCRProcessor.from_pretrained('microsoft/trocr-small-handwritten', use_fast=False)
+model = VisionEncoderDecoderModel.from_pretrained('microsoft/trocr-small-handwritten')
+# ... (rest of setup and training loop)
+
+- Run Command:
+  python train_trocr.py
+
+Results
+- Training Loss: Dropped to 0.0190 after 20 epochs.
+- Output: Best weights at `/home/msi/course/crohme/weights/trocr/trocr_crohme_best.pth`.
+
+Validation
+- Use `infer_trocr.py` (not included here) to check accuracy:
+  - Update paths for validation labels and images.
+  - Run: `python infer_trocr.py`.
+- Metrics: Exact match and token-level accuracy.
+
+How to Reproduce
+1. Setup Environment:
+   conda create -n C2F-Seg python=3.10
+   conda activate C2F-Seg
+   pip install transformers torch torchvision Pillow sentencepiece protobuf
+2. Prepare Data:
+   - Place labels in `/path/to/labels/combined_labels.txt`.
+   - Place images in `/path/to/images/combined_images/`.
+3. Update Paths:
+   - Edit `LABEL_FILE` and `IMAGE_DIR` in `train_trocr.py`.
+4. Train:
+   python train_trocr.py
+
+Notes
+- GPU Memory: If OOM occurs, clear cache (`torch.cuda.empty_cache()`) or reduce `accumulation_steps`.
+- Time: ~4–8 hours/epoch on a 3.6 GiB GPU with 15,523 samples.
+- Improvements: Could increase epochs or fine-tune hyperparameters for better accuracy.
+
+Acknowledgments
+- Built with help from xAI’s Grok 3, guiding through OOM fixes and dependency issues.
+- Uses Hugging Face’s `transformers` library.

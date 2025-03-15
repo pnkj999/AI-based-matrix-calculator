@@ -37,6 +37,8 @@ For updated code these operations will come
     NOw we have traine our model on tr ocr model and you can see from hee the model rquriements 
 
     TrOCR Training on CROHME Dataset
+    Link for weight files
+https://drive.google.com/file/d/1GE3P-dh6in6g84fxJfCbet4UiNI6KJZU/view?usp=sharing
 
 This repository contains code to train a TrOCR model (`microsoft/trocr-small-handwritten`) on the CROHME dataset for handwritten mathematical expression recognition. The training process uses a custom dataset class, mixed precision (FP16), and gradient accumulation to fit a small GPU (3.6 GiB).
 
@@ -126,5 +128,5 @@ Notes
 - Improvements: Could increase epochs or fine-tune hyperparameters for better accuracy.
 
 Acknowledgments
-- Built with help from xAI’s Grok 3, guiding through OOM fixes and dependency issues.
 - Uses Hugging Face’s `transformers` library.
+
